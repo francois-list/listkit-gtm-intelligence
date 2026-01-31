@@ -1,0 +1,67 @@
+name: One-Time Data Sync
+
+on:
+  workflow_dispatch:
+    inputs:
+      sync_type:
+        description: 'Which sync to run'
+        required: true
+        default: 'both'
+        type: choice
+        options:
+          - both
+          - fathom
+          - calendly
+      days_back:
+        description: 'Days of history to sync'
+        required: true
+        default: '365'
+        type: string
+
+jobs:
+  sync:
+    runs-on: ubuntu-latest
+    timeout-minutes: 120  # 2 hour timeout for large syncs
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+
+      - name: Run Fathom Sync
+        if: ${{ github.event.inputs.sync_type == 'both' || github.event.inputs.sync_type == 'fathom' }}
+        env:
+          DATABASE_URL: ${{ secrets.DATABASE_URL }}
+          FATHOM_API_KEY: ${{ secrets.FATHOM_API_KEY }}
+        run: |
+          echo "Starting Fathom sync for ${{ github.event.inputs.days_back }} days..."
+          PYTHONPATH="$PWD/execution:$PYTHONPATH" python execution/sync/sync_fathom.py --days=${{ github.event.inputs.days_back }}
+          echo "Fathom sync completed!"
+
+      - name: Run Calendly Sync
+        if: ${{ github.event.inputs.sync_type == 'both' || github.event.inputs.sync_type == 'calendly' }}
+        env:
+          DATABASE_URL: ${{ secrets.DATABASE_URL }}
+          CALENDLY_API_KEY: ${{ secrets.CALENDLY_API_KEY }}
+        run: |
+          echo "Starting Calendly sync for ${{ github.event.inputs.days_back }} days..."
+          PYTHONPATH="$PWD/execution:$PYTHONPATH" python execution/sync/sync_calendly.py --days=${{ github.event.inputs.days_back }}
+          echo "Calendly sync completed!"
+
+      - name: Sync Summary
+        run: |
+          echo "============================================="
+          echo "SYNC COMPLETED SUCCESSFULLY"
+          echo "============================================="
+          echo "Sync type: ${{ github.event.inputs.sync_type }}"
+          echo "Days synced: ${{ github.event.inputs.days_back }}"
+          echo "============================================="

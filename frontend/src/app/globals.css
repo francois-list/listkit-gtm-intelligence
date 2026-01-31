@@ -1,0 +1,535 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* ============================================
+   ListKit Design System - CSS Variables
+   ============================================ */
+:root {
+  /* Primary Blue */
+  --primary: #5273FF;
+  --primary-hover: #3A5AE6;
+  --primary-light: #EEF4FF;
+
+  /* Secondary Violet */
+  --secondary: #660CFB;
+  --secondary-light: #D2B7FE;
+
+  /* Neutrals */
+  --bg: #F8FAFC;
+  --surface: #FFFFFF;
+  --surface-muted: #F1F5F9;
+  --border: #E5E7EB;
+  --border-strong: #D1D5DB;
+  --text: #0F172A;
+  --text-muted: #64748B;
+  --text-subtle: #94A3B8;
+
+  /* Accents */
+  --success-bg: #C2EAD5;
+  --success-text: #2BB76C;
+  --success-border: rgba(43, 183, 108, 0.25);
+  --warning-bg: #EBD6AC;
+  --warning-text: #C58D17;
+  --warning-border: rgba(197, 141, 23, 0.25);
+  --info-bg: #EEF4FF;
+  --info-text: #5273FF;
+  --info-border: rgba(82, 115, 255, 0.25);
+  --violet-bg: #D2B7FE;
+  --violet-text: #660CFB;
+  --violet-border: rgba(102, 12, 251, 0.25);
+
+  /* Shadows */
+  --shadow-sm: 0 1px 2px rgba(15, 23, 42, 0.06);
+  --shadow-md: 0 6px 16px rgba(15, 23, 42, 0.08);
+  --ring-focus: 0 0 0 3px rgba(82, 115, 255, 0.25);
+
+  /* Layout */
+  --sidebar-width: 240px;
+  --sidebar-collapsed: 64px;
+  --filters-width: 300px;
+  --row-height: 36px;
+  --header-height: 44px;
+}
+
+/* Dark Mode */
+.dark {
+  --bg: #0B1220;
+  --surface: #0F172A;
+  --surface-muted: #111C30;
+  --border: rgba(148, 163, 184, 0.18);
+  --border-strong: rgba(148, 163, 184, 0.28);
+  --text: #E2E8F0;
+  --text-muted: #94A3B8;
+  --text-subtle: #64748B;
+  --primary: #6D86FF;
+  --primary-light: rgba(109, 134, 255, 0.18);
+  --secondary: #9B7CFF;
+  --secondary-light: rgba(155, 124, 255, 0.18);
+  --success-bg: rgba(43, 183, 108, 0.18);
+  --success-text: #5DE0A0;
+  --success-border: rgba(93, 224, 160, 0.28);
+  --warning-bg: rgba(197, 141, 23, 0.18);
+  --warning-text: #F5C15A;
+  --warning-border: rgba(245, 193, 90, 0.28);
+  --info-bg: rgba(109, 134, 255, 0.18);
+  --info-text: #6D86FF;
+  --info-border: rgba(109, 134, 255, 0.28);
+  --violet-bg: rgba(155, 124, 255, 0.18);
+  --violet-text: #9B7CFF;
+  --violet-border: rgba(155, 124, 255, 0.28);
+  --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.35);
+  --shadow-md: 0 10px 24px rgba(0, 0, 0, 0.45);
+  --ring-focus: 0 0 0 3px rgba(109, 134, 255, 0.30);
+}
+
+/* ============================================
+   Base Styles
+   ============================================ */
+html, body {
+  height: 100%;
+  overflow: hidden;
+}
+
+body {
+  font-family: system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  font-size: 13px;
+  line-height: 18px;
+  color: var(--text);
+  background: var(--bg);
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+/* Custom scrollbar */
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+
+::-webkit-scrollbar-track {
+  background: var(--surface-muted);
+}
+
+::-webkit-scrollbar-thumb {
+  background: var(--border-strong);
+  border-radius: 3px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: var(--text-subtle);
+}
+
+/* Focus ring */
+*:focus-visible {
+  outline: none;
+  box-shadow: var(--ring-focus);
+}
+
+/* ============================================
+   Component Classes - ListKit Design
+   ============================================ */
+@layer components {
+  /* Card */
+  .card {
+    @apply bg-[var(--surface)] border border-[var(--border)] rounded-md p-4;
+    box-shadow: var(--shadow-sm);
+  }
+
+  .card:hover {
+    box-shadow: var(--shadow-md);
+  }
+
+  /* Buttons - Primary Solid */
+  .btn-primary {
+    @apply inline-flex items-center justify-center gap-2 px-4 py-2 rounded-sm text-body-strong text-white transition-colors;
+    background: var(--primary);
+  }
+
+  .btn-primary:hover {
+    background: var(--primary-hover);
+  }
+
+  /* Buttons - Primary Soft */
+  .btn-primary-soft {
+    @apply inline-flex items-center justify-center gap-2 px-4 py-2 rounded-sm text-body-strong transition-colors;
+    background: var(--primary-light);
+    color: var(--primary);
+  }
+
+  .btn-primary-soft:hover {
+    background: rgba(82, 115, 255, 0.2);
+  }
+
+  /* Buttons - Neutral Outline */
+  .btn-secondary {
+    @apply inline-flex items-center justify-center gap-2 px-4 py-2 rounded-sm text-body-strong transition-colors;
+    background: var(--surface);
+    color: var(--text);
+    border: 1px solid var(--border);
+  }
+
+  .btn-secondary:hover {
+    background: var(--surface-muted);
+  }
+
+  /* Buttons - Small variant */
+  .btn-sm {
+    @apply px-3 py-1.5 text-caption;
+  }
+
+  /* Buttons - Icon only */
+  .btn-icon {
+    @apply inline-flex items-center justify-center w-8 h-8 rounded-sm transition-colors;
+    background: var(--surface);
+    color: var(--text-muted);
+    border: 1px solid var(--border);
+  }
+
+  .btn-icon:hover {
+    background: var(--surface-muted);
+    color: var(--text);
+  }
+
+  /* Badge base */
+  .badge {
+    @apply inline-flex items-center px-2 py-0.5 rounded-pill text-caption font-medium;
+  }
+
+  /* Badge variants */
+  .badge-success {
+    background: transparent;
+    color: var(--success-text);
+  }
+
+  .badge-warning {
+    background: transparent;
+    color: var(--warning-text);
+  }
+
+  .badge-error {
+    @apply bg-transparent text-red-600;
+  }
+
+  .dark .badge-error {
+    @apply bg-transparent text-red-400;
+  }
+
+  .badge-info {
+    background: transparent;
+    color: var(--info-text);
+  }
+
+  .badge-violet {
+    background: transparent;
+    color: var(--violet-text);
+  }
+
+  /* Pill (smaller, inline tag) */
+  .pill {
+    @apply inline-flex items-center px-2 py-0.5 rounded-pill text-caption;
+    background: var(--surface-muted);
+    color: var(--text-muted);
+  }
+
+  /* Input fields */
+  .input {
+    @apply w-full px-3 py-2 rounded-sm text-body transition-colors;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    color: var(--text);
+  }
+
+  .input:hover {
+    border-color: var(--border-strong);
+  }
+
+  .input:focus {
+    outline: none;
+    border-color: var(--primary);
+    box-shadow: var(--ring-focus);
+  }
+
+  .input::placeholder {
+    color: var(--text-subtle);
+  }
+
+  /* Select dropdown */
+  .select {
+    @apply w-full px-3 py-2 pr-8 rounded-sm text-body appearance-none cursor-pointer;
+    background: var(--surface) url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16' viewBox='0 0 24 24' fill='none' stroke='%2364748B' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m6 9 6 6 6-6'/%3E%3C/svg%3E") no-repeat right 8px center;
+    border: 1px solid var(--border);
+    color: var(--text);
+  }
+
+  /* Table styles */
+  .table-container {
+    @apply overflow-hidden rounded-md;
+    background: var(--surface);
+    border: 1px solid var(--border);
+  }
+
+  .table-header {
+    @apply h-11 text-caption font-semibold;
+    background: var(--surface);
+    color: var(--text-muted);
+    border-bottom: 1px solid var(--border);
+  }
+
+  .table-header th {
+    @apply px-3 text-left font-semibold;
+    border-right: 1px solid var(--border);
+  }
+
+  .table-header th:last-child {
+    border-right: none;
+  }
+
+  .table-row {
+    @apply h-9 text-body transition-colors;
+    border-bottom: 1px solid var(--border);
+  }
+
+  .table-row:last-child {
+    border-bottom: none;
+  }
+
+  .table-row:hover {
+    background: var(--surface-muted);
+  }
+
+  .table-row td {
+    @apply px-3 truncate;
+  }
+
+  /* Nav item states */
+  .nav-item {
+    @apply flex items-center gap-3 px-3 py-2.5 rounded-sm text-body transition-colors cursor-pointer;
+    color: var(--text);
+  }
+
+  .nav-item:hover {
+    background: var(--surface-muted);
+  }
+
+  .nav-item.active {
+    background: var(--primary-light);
+    color: var(--primary);
+  }
+
+  .nav-item .icon {
+    color: var(--text-muted);
+  }
+
+  .nav-item.active .icon {
+    color: var(--primary);
+  }
+
+  /* Accordion row (for filters) */
+  .accordion-row {
+    @apply flex items-center gap-3 px-3 h-10 cursor-pointer transition-colors;
+    border-bottom: 1px solid var(--border);
+  }
+
+  .accordion-row:hover {
+    background: var(--surface-muted);
+  }
+
+  /* Chip button */
+  .chip {
+    @apply inline-flex items-center gap-1.5 px-3 py-1.5 rounded-sm text-caption font-medium transition-colors;
+    background: var(--surface);
+    color: var(--text);
+    border: 1px solid var(--border);
+  }
+
+  .chip:hover {
+    background: var(--surface-muted);
+  }
+
+  .chip.active {
+    background: var(--primary-light);
+    color: var(--primary);
+    border-color: transparent;
+  }
+
+  /* Count badge (inside chips/tabs) */
+  .count-badge {
+    @apply inline-flex items-center justify-center min-w-5 h-5 px-1.5 rounded-pill text-caption font-medium;
+    background: var(--surface-muted);
+    color: var(--text-muted);
+  }
+
+  .active .count-badge {
+    background: rgba(82, 115, 255, 0.15);
+    color: var(--primary);
+  }
+
+  /* Section header */
+  .section-label {
+    @apply text-section-label uppercase tracking-wide;
+    color: var(--text-muted);
+  }
+
+  /* Link */
+  .link {
+    color: var(--primary);
+    @apply hover:underline;
+  }
+
+  /* Divider */
+  .divider {
+    @apply w-full h-px;
+    background: var(--border);
+  }
+
+  /* Avatar */
+  .avatar {
+    @apply flex items-center justify-center rounded-full font-medium text-caption;
+  }
+
+  .avatar-sm {
+    @apply w-6 h-6;
+  }
+
+  .avatar-md {
+    @apply w-9 h-9;
+  }
+
+  .avatar-lg {
+    @apply w-12 h-12;
+  }
+
+  /* Plan card (sidebar) */
+  .plan-card {
+    @apply p-3 rounded-md;
+    background: var(--surface-muted);
+  }
+
+  /* Segmented control */
+  .segmented-control {
+    @apply inline-flex rounded-sm overflow-hidden;
+    background: var(--surface);
+    border: 1px solid var(--border);
+  }
+
+  .segmented-control button {
+    @apply px-3 py-1.5 transition-colors;
+    color: var(--text-muted);
+  }
+
+  .segmented-control button:hover {
+    background: var(--surface-muted);
+    color: var(--text);
+  }
+
+  .segmented-control button.active {
+    background: var(--surface-muted);
+    color: var(--text);
+  }
+
+  /* Pagination */
+  .pagination-btn {
+    @apply inline-flex items-center justify-center min-w-8 h-8 px-2 rounded-sm text-caption font-medium transition-colors;
+    background: transparent;
+    color: var(--text-muted);
+  }
+
+  .pagination-btn:hover {
+    background: var(--surface-muted);
+    color: var(--text);
+  }
+
+  .pagination-btn.active {
+    background: var(--surface-muted);
+    color: var(--text);
+  }
+
+  /* Skeleton loading */
+  .skeleton {
+    @apply animate-pulse rounded-sm;
+    background: var(--surface-muted);
+  }
+
+  /* Empty state */
+  .empty-state {
+    @apply flex flex-col items-center justify-center py-12 text-center;
+    color: var(--text-muted);
+  }
+
+  /* Tooltip (basic) */
+  .tooltip {
+    @apply absolute z-50 px-2 py-1 rounded-xs text-caption;
+    background: var(--text);
+    color: var(--surface);
+  }
+}
+
+/* ============================================
+   Utility overrides
+   ============================================ */
+@layer utilities {
+  /* Text colors using CSS vars */
+  .text-default {
+    color: var(--text);
+  }
+
+  .text-muted {
+    color: var(--text-muted);
+  }
+
+  .text-subtle {
+    color: var(--text-subtle);
+  }
+
+  /* Background colors using CSS vars */
+  .bg-page {
+    background: var(--bg);
+  }
+
+  .bg-surface {
+    background: var(--surface);
+  }
+
+  .bg-surface-muted {
+    background: var(--surface-muted);
+  }
+
+  /* Border colors using CSS vars */
+  .border-default {
+    border-color: var(--border);
+  }
+
+  .border-strong {
+    border-color: var(--border-strong);
+  }
+
+  /* Row height */
+  .h-row {
+    height: var(--row-height);
+  }
+
+  .h-header {
+    height: var(--header-height);
+  }
+}
+
+/* ============================================
+   Transitions
+   ============================================ */
+* {
+  transition-property: background-color, border-color, color, opacity, box-shadow;
+  transition-timing-function: cubic-bezier(0.4, 0, 0.2, 1);
+  transition-duration: 150ms;
+}
+
+/* Layout transitions need to be slower */
+.transition-layout {
+  transition-property: width, margin, padding, transform;
+  transition-duration: 300ms;
+}
+
+/* Prevent flash on page load */
+.preload * {
+  transition: none !important;
+}
