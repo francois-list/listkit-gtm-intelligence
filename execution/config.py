@@ -21,7 +21,7 @@ class Settings(BaseSettings):
     database_url: str
 
     # Phase 1 - Active Now
-    intercom_api_key: str
+    intercom_api_key: Optional[str] = None
 
     # Airtable (AM Assignments)
     airtable_api_key: Optional[str] = None
