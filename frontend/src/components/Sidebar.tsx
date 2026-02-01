@@ -18,7 +18,10 @@ import {
   Slack,
   GraduationCap,
   Zap,
+  Moon,
+  Sun,
 } from 'lucide-react'
+import { useTheme } from './LayoutWrapper'
 
 interface NavItem {
   name: string
@@ -73,6 +76,7 @@ interface SidebarProps {
 
 export default function Sidebar({ collapsed, onToggle }: SidebarProps) {
   const pathname = usePathname()
+  const { theme, toggleTheme } = useTheme()
   const [expandedGroups, setExpandedGroups] = useState<Record<string, boolean>>(() => {
     const initial: Record<string, boolean> = {}
     navGroups.forEach((group) => {
@@ -106,7 +110,7 @@ export default function Sidebar({ collapsed, onToggle }: SidebarProps) {
             <img
               src="/listkit-icon.png"
               alt="ListKit"
-              className="w-8 h-8 object-contain"
+              className={`w-8 h-8 object-contain ${theme === 'dark' ? 'invert' : ''}`}
             />
           </div>
         ) : (
@@ -114,7 +118,7 @@ export default function Sidebar({ collapsed, onToggle }: SidebarProps) {
             <img
               src="/listkit-logo.png"
               alt="ListKit"
-              className="h-7 object-contain"
+              className={`h-7 object-contain ${theme === 'dark' ? 'invert' : ''}`}
             />
             <button
               onClick={onToggle}
@@ -259,6 +263,18 @@ export default function Sidebar({ collapsed, onToggle }: SidebarProps) {
               </a>
             )
           })}
+          {/* Theme Toggle */}
+          <button
+            onClick={toggleTheme}
+            className="flex items-center gap-3 px-3 py-2 rounded-sm text-body text-[var(--text-muted)] hover:bg-[var(--surface-muted)] hover:text-[var(--text)] transition-colors w-full text-left"
+          >
+            {theme === 'light' ? (
+              <Moon className="w-4 h-4" />
+            ) : (
+              <Sun className="w-4 h-4" />
+            )}
+            <span>{theme === 'light' ? 'Dark Mode' : 'Light Mode'}</span>
+          </button>
         </div>
       )}
 
@@ -277,9 +293,20 @@ export default function Sidebar({ collapsed, onToggle }: SidebarProps) {
         </div>
       </div>
 
-      {/* Toggle Button (when collapsed) */}
+      {/* Toggle Buttons (when collapsed) */}
       {collapsed && (
-        <div className="px-2 pb-3">
+        <div className="px-2 pb-3 space-y-2">
+          <button
+            onClick={toggleTheme}
+            className="btn-icon w-full"
+            title={theme === 'light' ? 'Dark Mode' : 'Light Mode'}
+          >
+            {theme === 'light' ? (
+              <Moon className="w-4 h-4" />
+            ) : (
+              <Sun className="w-4 h-4" />
+            )}
+          </button>
           <button
             onClick={onToggle}
             className="btn-icon w-full"

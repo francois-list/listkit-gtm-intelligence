@@ -123,6 +123,11 @@ def sync_intercom(incremental: bool = True) -> Dict[str, Any]:
                 logger.error(f"Error processing contact {contact.get('id')}: {e}")
                 metrics["errors"] += 1
                 metrics["contacts_skipped"] += 1
+                # Rollback failed transaction so we can continue
+                try:
+                    db.rollback()
+                except:
+                    pass
 
         # Update sync log
         sync_log.status = "completed"
@@ -226,7 +231,9 @@ def process_contact(
     stripe_data = client.extract_stripe_data(contact)
 
     customer.stripe_customer_id = stripe_data.get("stripe_customer_id")
-    customer.plan_name = stripe_data.get("plan_name")
+    # Truncate plan_name to 100 chars (database limit)
+    plan_name = stripe_data.get("plan_name")
+    customer.plan_name = plan_name[:100] if plan_name else None
     customer.subscription_status = stripe_data.get("subscription_status")
     customer.is_delinquent = stripe_data.get("is_delinquent", False)
     customer.mrr = stripe_data.get("mrr", 0)

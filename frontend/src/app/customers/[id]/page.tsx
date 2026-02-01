@@ -1,6 +1,8 @@
 import { notFound } from 'next/navigation'
 import Link from 'next/link'
 import { getCustomerById, getCampaignsForCustomer, FathomCall, CalendlyEvent, IntercomConversation } from '@/lib/supabase'
+import ExpandableCallList from '@/components/ExpandableCallList'
+import ExpandableConversationList from '@/components/ExpandableConversationList'
 
 // Force dynamic rendering - don't cache this page
 export const dynamic = 'force-dynamic'
@@ -427,110 +429,16 @@ export default async function CustomerDetailPage({
               }
 
               return (
-                <div className="space-y-4">
-                  {/* Summary Stats */}
-                  <div className="grid grid-cols-2 md:grid-cols-4 gap-3 p-3 bg-[var(--surface-muted)] rounded-sm">
-                    <div>
-                      <p className="text-caption text-[var(--text-muted)]">Fathom Recordings</p>
-                      <p className="text-body-strong text-[var(--text)]">{customAttrs.fathom_calls_count || 0}</p>
-                    </div>
-                    <div>
-                      <p className="text-caption text-[var(--text-muted)]">Total Duration</p>
-                      <p className="text-body-strong text-[var(--text)]">{customAttrs.fathom_total_duration_minutes || 0} min</p>
-                    </div>
-                    <div>
-                      <p className="text-caption text-[var(--text-muted)]">Calendly Events</p>
-                      <p className="text-body-strong text-[var(--text)]">{customAttrs.calendly_events_count || 0}</p>
-                    </div>
-                    <div>
-                      <p className="text-caption text-[var(--text-muted)]">Show Rate</p>
-                      <p className="text-body-strong text-[var(--text)]">
-                        {customAttrs.calendly_show_rate !== undefined ? `${(customAttrs.calendly_show_rate * 100).toFixed(0)}%` : '—'}
-                      </p>
-                    </div>
-                  </div>
-
-                  {/* Fathom Recordings */}
-                  {fathomCalls.length > 0 && (
-                    <div>
-                      <h4 className="text-caption font-medium text-[var(--text-muted)] mb-2 flex items-center gap-2">
-                        <Video className="w-4 h-4" />
-                        Fathom Recordings ({fathomCalls.length})
-                      </h4>
-                      <div className="space-y-2">
-                        {fathomCalls.slice(0, 5).map((call: FathomCall, idx: number) => (
-                          <div key={call.call_id || idx} className="flex items-center justify-between p-2 bg-[var(--surface-muted)] rounded-sm">
-                            <div className="flex-1 min-w-0">
-                              <p className="text-body text-[var(--text)] truncate">{call.title || 'Untitled Recording'}</p>
-                              <p className="text-caption text-[var(--text-muted)]">
-                                {call.date ? new Date(call.date).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }) : '—'}
-                                {call.duration_minutes ? ` • ${call.duration_minutes} min` : ''}
-                                {call.recorded_by && ` • Host: ${call.recorded_by}`}
-                              </p>
-                            </div>
-                            {call.share_url && (
-                              <a
-                                href={call.share_url}
-                                target="_blank"
-                                rel="noopener noreferrer"
-                                className="ml-2 text-[var(--accent)] hover:underline text-caption flex items-center gap-1"
-                              >
-                                View <ExternalLink className="w-3 h-3" />
-                              </a>
-                            )}
-                          </div>
-                        ))}
-                        {fathomCalls.length > 5 && (
-                          <p className="text-caption text-[var(--text-muted)] text-center">
-                            +{fathomCalls.length - 5} more recordings
-                          </p>
-                        )}
-                      </div>
-                    </div>
-                  )}
-
-                  {/* Calendly Events */}
-                  {calendlyEvents.length > 0 && (
-                    <div>
-                      <h4 className="text-caption font-medium text-[var(--text-muted)] mb-2 flex items-center gap-2">
-                        <Calendar className="w-4 h-4" />
-                        Calendly Bookings ({calendlyEvents.length})
-                      </h4>
-                      <div className="space-y-2">
-                        {calendlyEvents.slice(0, 5).map((event: CalendlyEvent, idx: number) => (
-                          <div key={event.event_id || idx} className="flex items-center justify-between p-2 bg-[var(--surface-muted)] rounded-sm">
-                            <div className="flex-1 min-w-0">
-                              <div className="flex items-center gap-2">
-                                <p className="text-body text-[var(--text)] truncate">{event.event_name || event.event_type || 'Meeting'}</p>
-                                {event.status && (
-                                  <span className={`text-xs px-1.5 py-0.5 rounded ${
-                                    event.status === 'active' ? 'bg-green-100 text-green-700' :
-                                    event.status === 'canceled' ? 'bg-red-100 text-red-700' :
-                                    'bg-gray-100 text-gray-600'
-                                  }`}>
-                                    {event.status}
-                                  </span>
-                                )}
-                                {event.no_show && (
-                                  <span className="text-xs px-1.5 py-0.5 rounded bg-orange-100 text-orange-700">No Show</span>
-                                )}
-                              </div>
-                              <p className="text-caption text-[var(--text-muted)]">
-                                {event.start_time ? new Date(event.start_time).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric', hour: 'numeric', minute: '2-digit' }) : '—'}
-                                {event.organizer && ` • Host: ${event.organizer}`}
-                              </p>
-                            </div>
-                          </div>
-                        ))}
-                        {calendlyEvents.length > 5 && (
-                          <p className="text-caption text-[var(--text-muted)] text-center">
-                            +{calendlyEvents.length - 5} more events
-                          </p>
-                        )}
-                      </div>
-                    </div>
-                  )}
-                </div>
+                <ExpandableCallList
+                  fathomCalls={fathomCalls}
+                  calendlyEvents={calendlyEvents}
+                  customAttrs={{
+                    fathom_calls_count: customAttrs.fathom_calls_count,
+                    fathom_total_duration_minutes: customAttrs.fathom_total_duration_minutes,
+                    calendly_events_count: customAttrs.calendly_events_count,
+                    calendly_show_rate: customAttrs.calendly_show_rate,
+                  }}
+                />
               )
             })()}
           </InfoCard>
@@ -563,88 +471,13 @@ export default async function CustomerDetailPage({
               }
 
               return (
-                <div className="space-y-4">
-                  {/* Summary Stats */}
-                  <div className="grid grid-cols-2 md:grid-cols-4 gap-3 p-3 bg-[var(--surface-muted)] rounded-sm">
-                    <div>
-                      <p className="text-caption text-[var(--text-muted)]">Total Conversations</p>
-                      <p className="text-body-strong text-[var(--text)]">{customAttrs.intercom_conversations_count || conversations.length}</p>
-                    </div>
-                    <div>
-                      <p className="text-caption text-[var(--text-muted)]">Open</p>
-                      <p className="text-body-strong text-[var(--text)]">{customAttrs.intercom_open_count || 0}</p>
-                    </div>
-                    <div>
-                      <p className="text-caption text-[var(--text-muted)]">Last 30 Days</p>
-                      <p className="text-body-strong text-[var(--text)]">{customer.intercom_convos_30d || 0}</p>
-                    </div>
-                    <div>
-                      <p className="text-caption text-[var(--text-muted)]">Cancel Mentioned</p>
-                      <p className="text-body-strong text-[var(--text)]">{customer.mentioned_cancel ? 'Yes ⚠️' : 'No'}</p>
-                    </div>
-                  </div>
-
-                  {/* Conversations List */}
-                  <div className="space-y-2">
-                    {conversations.slice(0, 10).map((convo: IntercomConversation, idx: number) => (
-                      <a
-                        key={convo.conversation_id || idx}
-                        href={convo.intercom_url}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="block p-3 bg-[var(--surface-muted)] rounded-sm hover:bg-[var(--surface-hover)] transition-colors"
-                      >
-                        <div className="flex items-start justify-between gap-3">
-                          <div className="flex-1 min-w-0">
-                            <div className="flex items-center gap-2 flex-wrap">
-                              <p className="text-body text-[var(--text)] font-medium truncate">
-                                {convo.subject || 'No Subject'}
-                              </p>
-                              <span className={`text-xs px-1.5 py-0.5 rounded ${
-                                convo.state === 'open' ? 'bg-yellow-100 text-yellow-700' :
-                                convo.state === 'closed' ? 'bg-green-100 text-green-700' :
-                                convo.state === 'snoozed' ? 'bg-blue-100 text-blue-700' :
-                                'bg-gray-100 text-gray-600'
-                              }`}>
-                                {convo.state || 'unknown'}
-                              </span>
-                              <span className={`text-xs px-1.5 py-0.5 rounded ${
-                                convo.source_type === 'email' ? 'bg-purple-100 text-purple-700' :
-                                convo.source_type === 'conversation' ? 'bg-blue-100 text-blue-700' :
-                                'bg-gray-100 text-gray-600'
-                              }`}>
-                                {convo.source_type || 'chat'}
-                              </span>
-                              {!convo.read && (
-                                <span className="text-xs px-1.5 py-0.5 rounded bg-red-100 text-red-700">Unread</span>
-                              )}
-                            </div>
-                            <p className="text-caption text-[var(--text-muted)] mt-1 line-clamp-2">
-                              {convo.preview || 'No preview available'}
-                            </p>
-                            <p className="text-caption text-[var(--text-subtle)] mt-1">
-                              {convo.created_at ? new Date(convo.created_at * 1000).toLocaleDateString('en-US', {
-                                month: 'short',
-                                day: 'numeric',
-                                year: 'numeric',
-                                hour: 'numeric',
-                                minute: '2-digit'
-                              }) : '—'}
-                              {convo.author_name && ` • From: ${convo.author_name}`}
-                              {convo.parts_count > 0 && ` • ${convo.parts_count} messages`}
-                            </p>
-                          </div>
-                          <ExternalLink className="w-4 h-4 text-[var(--text-muted)] flex-shrink-0 mt-1" />
-                        </div>
-                      </a>
-                    ))}
-                    {conversations.length > 10 && (
-                      <p className="text-caption text-[var(--text-muted)] text-center py-2">
-                        +{conversations.length - 10} more conversations
-                      </p>
-                    )}
-                  </div>
-                </div>
+                <ExpandableConversationList
+                  conversations={conversations}
+                  totalCount={customAttrs.intercom_conversations_count || conversations.length}
+                  openCount={customAttrs.intercom_open_count || 0}
+                  last30Days={customer.intercom_convos_30d || 0}
+                  mentionedCancel={customer.mentioned_cancel || false}
+                />
               )
             })()}
           </InfoCard>
