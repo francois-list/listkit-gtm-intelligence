@@ -185,21 +185,20 @@ def process_contact(
 
     email = email.lower().strip()
 
-    # Check if customer exists
+    # Check if customer exists - only update existing customers, don't create new ones
     customer = db.query(UnifiedCustomer).filter(
         UnifiedCustomer.email == email
     ).first()
 
-    is_new = customer is None
+    if customer is None:
+        # Skip contacts that don't exist in our database
+        # We only want to enrich existing customers, not import all Intercom contacts
+        logger.debug(f"Skipping {email} - not an existing customer")
+        metrics["contacts_skipped"] += 1
+        return
 
-    if is_new:
-        customer = UnifiedCustomer(email=email)
-        db.add(customer)
-        metrics["contacts_created"] += 1
-        logger.info(f"+ Creating new customer: {email}")
-    else:
-        metrics["contacts_updated"] += 1
-        logger.debug(f"~ Updating customer: {email}")
+    metrics["contacts_updated"] += 1
+    logger.debug(f"~ Updating customer: {email}")
 
     # Extract basic profile data
     customer.name = contact.get("name") or email.split("@")[0]
