@@ -21,7 +21,7 @@ on:
 jobs:
   sync:
     runs-on: ubuntu-latest
-    timeout-minutes: 120  # 2 hour timeout for large syncs
+    timeout-minutes: 360  # 6 hour timeout for large syncs
 
     steps:
       - name: Checkout code
