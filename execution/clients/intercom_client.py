@@ -53,11 +53,11 @@ class IntercomClient(BaseClient):
     
     def get_contact_conversations(self, contact_id: str, per_page: int = 50) -> List[Dict[str, Any]]:
         """
-        Get all conversations for a contact with pagination.
+        Get all conversations for a contact using the Search API.
 
         Args:
             contact_id: Intercom contact ID
-            per_page: Results per page (max 50)
+            per_page: Results per page (max 150)
 
         Returns:
             List of conversation objects
@@ -67,11 +67,22 @@ class IntercomClient(BaseClient):
 
         try:
             while True:
-                params = {"per_page": min(per_page, 50)}
-                if starting_after:
-                    params["starting_after"] = starting_after
+                # Use Search Conversations API with contact_ids filter
+                payload = {
+                    "query": {
+                        "field": "contact_ids",
+                        "operator": "=",
+                        "value": contact_id
+                    },
+                    "pagination": {
+                        "per_page": min(per_page, 150)
+                    }
+                }
 
-                response = self._request("GET", f"/contacts/{contact_id}/conversations", params=params)
+                if starting_after:
+                    payload["pagination"]["starting_after"] = starting_after
+
+                response = self._request("POST", "/conversations/search", json_data=payload)
                 conversations = response.get("conversations", [])
 
                 if not conversations:

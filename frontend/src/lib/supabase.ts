@@ -521,12 +521,37 @@ export interface CustomerAnalytics {
 
 export async function getCustomerAnalytics(filters: CustomerFilters): Promise<CustomerAnalytics> {
   try {
-    // Use getCustomers to ensure same filter logic as table view
-    const { customers: allCustomers } = await getCustomers({
+    // Supabase has a default 1000 row limit, so we need to batch fetch all customers
+    // First, get the total count and first batch
+    const BATCH_SIZE = 1000
+    const { customers: firstBatch, total } = await getCustomers({
       ...filters,
-      limit: 10000,
+      limit: BATCH_SIZE,
       offset: 0,
     })
+
+    let allCustomers = [...firstBatch]
+
+    // Fetch remaining batches if needed
+    if (total > BATCH_SIZE) {
+      const remainingBatches = Math.ceil((total - BATCH_SIZE) / BATCH_SIZE)
+      const batchPromises = []
+
+      for (let i = 1; i <= remainingBatches; i++) {
+        batchPromises.push(
+          getCustomers({
+            ...filters,
+            limit: BATCH_SIZE,
+            offset: i * BATCH_SIZE,
+          })
+        )
+      }
+
+      const batchResults = await Promise.all(batchPromises)
+      for (const result of batchResults) {
+        allCustomers = allCustomers.concat(result.customers)
+      }
+    }
 
     const customers = allCustomers
 

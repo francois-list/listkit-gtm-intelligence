@@ -24,6 +24,7 @@ import {
   Filter,
   Building2,
 } from 'lucide-react'
+import { LoadingOverlay } from '@/components/LoadingSpinner'
 
 // Health Score Badge
 function HealthScore({ score }: { score: number | null }) {
@@ -50,13 +51,7 @@ function HealthScore({ score }: { score: number | null }) {
 function AnalyticsView({ analytics, loading }: { analytics: CustomerAnalytics | null; loading: boolean }) {
   if (loading) {
     return (
-      <div className="space-y-4">
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-          {Array.from({ length: 8 }).map((_, i) => (
-            <div key={i} className="skeleton h-24 rounded-md" />
-          ))}
-        </div>
-      </div>
+      <LoadingOverlay message="Loading analytics" showProgress={true} />
     )
   }
 
@@ -710,18 +705,11 @@ function CustomersContent() {
                     </thead>
                     <tbody>
                       {loading ? (
-                        Array.from({ length: 10 }).map((_, i) => (
-                          <tr key={i} className="table-row">
-                            <td className="py-2 px-3"><div className="skeleton h-4 w-40" /></td>
-                            <td className="py-2 px-3"><div className="skeleton h-4 w-20" /></td>
-                            <td className="py-2 px-3"><div className="skeleton h-4 w-16" /></td>
-                            <td className="py-2 px-3"><div className="skeleton h-4 w-20" /></td>
-                            <td className="py-2 px-3"><div className="skeleton h-4 w-14 ml-auto" /></td>
-                            <td className="py-2 px-3"><div className="skeleton h-8 w-8 rounded-full mx-auto" /></td>
-                            <td className="py-2 px-3"><div className="skeleton h-4 w-14 mx-auto" /></td>
-                            <td className="py-2 px-3"><div className="skeleton h-4 w-14 ml-auto" /></td>
-                          </tr>
-                        ))
+                        <tr>
+                          <td colSpan={8} className="py-12">
+                            <LoadingOverlay message="Loading customers" showProgress={true} />
+                          </td>
+                        </tr>
                       ) : customers.length === 0 ? (
                         <tr>
                           <td colSpan={8} className="py-12">
@@ -857,8 +845,8 @@ function CustomersContent() {
 export default function CustomersPage() {
   return (
     <Suspense fallback={
-      <div className="flex items-center justify-center h-full bg-[var(--bg)]">
-        <div className="animate-spin rounded-full h-8 w-8 border-2 border-[var(--primary)] border-t-transparent" />
+      <div className="flex items-center justify-center h-full min-h-screen bg-[var(--bg)]">
+        <LoadingOverlay message="Loading customers" showProgress={true} />
       </div>
     }>
       <CustomersContent />

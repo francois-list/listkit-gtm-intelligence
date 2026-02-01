@@ -13,6 +13,7 @@ import {
   RefreshCw,
 } from 'lucide-react'
 import { MrrChart } from '@/components/MrrChart'
+import { LoadingOverlay } from '@/components/LoadingSpinner'
 
 // Format currency
 function formatCurrency(value: number): string {
@@ -389,32 +390,8 @@ async function DashboardContent() {
 // Loading fallback
 function DashboardSkeleton() {
   return (
-    <div className="p-4 lg:p-6 space-y-4">
-      <div className="flex items-center justify-between">
-        <div>
-          <div className="skeleton h-6 w-32" />
-          <div className="skeleton h-4 w-48 mt-2" />
-        </div>
-        <div className="flex gap-3">
-          <div className="skeleton h-8 w-20" />
-          <div className="skeleton h-8 w-24" />
-        </div>
-      </div>
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-        {[1, 2, 3, 4].map((i) => (
-          <div key={i} className="skeleton h-28 rounded-md" />
-        ))}
-      </div>
-      {/* Retention Metrics Skeleton */}
-      <div className="skeleton h-32 rounded-md" />
-      {/* Health Distribution Skeleton */}
-      <div className="skeleton h-20 rounded-md" />
-      {/* MRR Chart Skeleton */}
-      <div className="skeleton h-80 rounded-md" />
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-        <div className="skeleton h-80 rounded-md" />
-        <div className="skeleton h-80 rounded-md" />
-      </div>
+    <div className="flex items-center justify-center h-full min-h-screen">
+      <LoadingOverlay message="Loading dashboard" showProgress={true} />
     </div>
   )
 }
