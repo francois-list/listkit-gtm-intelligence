@@ -51,13 +51,137 @@ class IntercomClient(BaseClient):
     def get_contact(self, contact_id: str) -> Dict[str, Any]:
         return self._request("GET", f"/contacts/{contact_id}")
     
-    def get_contact_conversations(self, contact_id: str, per_page: int = 20) -> List[Dict[str, Any]]:
+    def get_contact_conversations(self, contact_id: str, per_page: int = 50) -> List[Dict[str, Any]]:
+        """
+        Get all conversations for a contact with pagination.
+
+        Args:
+            contact_id: Intercom contact ID
+            per_page: Results per page (max 50)
+
+        Returns:
+            List of conversation objects
+        """
+        all_conversations = []
+        starting_after = None
+
         try:
-            response = self._request("GET", f"/contacts/{contact_id}/conversations", params={"per_page": per_page})
-            return response.get("conversations", [])
+            while True:
+                params = {"per_page": min(per_page, 50)}
+                if starting_after:
+                    params["starting_after"] = starting_after
+
+                response = self._request("GET", f"/contacts/{contact_id}/conversations", params=params)
+                conversations = response.get("conversations", [])
+
+                if not conversations:
+                    break
+
+                all_conversations.extend(conversations)
+
+                # Check for next page
+                pages = response.get("pages", {})
+                next_page = pages.get("next", {})
+                starting_after = next_page.get("starting_after")
+
+                if not starting_after:
+                    break
+
+                time.sleep(0.1)  # Rate limiting
+
+            return all_conversations
         except Exception as e:
             logger.warning(f"Failed to fetch conversations for {contact_id}: {e}")
             return []
+
+    def get_conversation(self, conversation_id: str) -> Dict[str, Any]:
+        """
+        Get full details for a specific conversation.
+
+        Args:
+            conversation_id: Intercom conversation ID
+
+        Returns:
+            Conversation object with full details
+        """
+        try:
+            return self._request("GET", f"/conversations/{conversation_id}")
+        except Exception as e:
+            logger.warning(f"Failed to fetch conversation {conversation_id}: {e}")
+            return {}
+
+    def format_conversations_for_storage(
+        self,
+        conversations: List[Dict[str, Any]],
+        max_conversations: int = 20
+    ) -> List[Dict[str, Any]]:
+        """
+        Format conversations for storage in customer custom_attributes.
+
+        Args:
+            conversations: List of conversation objects from Intercom
+            max_conversations: Maximum number of conversations to store
+
+        Returns:
+            List of formatted conversation dictionaries
+        """
+        formatted = []
+
+        # Sort by created_at descending (most recent first)
+        sorted_convos = sorted(
+            conversations,
+            key=lambda x: x.get("created_at", 0),
+            reverse=True
+        )
+
+        for convo in sorted_convos[:max_conversations]:
+            source = convo.get("source", {})
+            author = source.get("author", {})
+
+            # Get subject/title
+            subject = source.get("subject") or convo.get("title") or "No Subject"
+            # Strip HTML tags from subject
+            if "<" in subject:
+                import re
+                subject = re.sub(r'<[^>]+>', '', subject).strip()
+
+            # Get preview of body (first 200 chars)
+            body = source.get("body") or ""
+            if "<" in body:
+                import re
+                body = re.sub(r'<[^>]+>', ' ', body).strip()
+            body = ' '.join(body.split())  # Normalize whitespace
+            preview = body[:200] + "..." if len(body) > 200 else body
+
+            # Determine source type
+            source_type = source.get("type", "unknown")
+            delivered_as = source.get("delivered_as", "")
+
+            # Build Intercom URL
+            conversation_id = convo.get("id")
+            intercom_url = f"https://app.intercom.com/a/inbox/_/inbox/conversation/{conversation_id}"
+
+            formatted.append({
+                "conversation_id": conversation_id,
+                "subject": subject,
+                "preview": preview,
+                "source_type": source_type,
+                "delivered_as": delivered_as,
+                "state": convo.get("state", "unknown"),
+                "priority": convo.get("priority"),
+                "created_at": convo.get("created_at"),
+                "updated_at": convo.get("updated_at"),
+                "waiting_since": convo.get("waiting_since"),
+                "read": convo.get("read", False),
+                "author_name": author.get("name"),
+                "author_email": author.get("email"),
+                "author_type": author.get("type"),
+                "intercom_url": intercom_url,
+                "tags": [t.get("name") for t in convo.get("tags", {}).get("tags", [])],
+                "parts_count": convo.get("statistics", {}).get("count_conversation_parts", 0)
+            })
+
+        return formatted
     
     def extract_stripe_data(self, contact: Dict[str, Any]) -> Dict[str, Any]:
         custom = contact.get("custom_attributes", {})

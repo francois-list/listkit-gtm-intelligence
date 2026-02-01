@@ -6,14 +6,15 @@ on:
       sync_type:
         description: 'Which sync to run'
         required: true
-        default: 'both'
+        default: 'all'
         type: choice
         options:
-          - both
+          - all
+          - intercom
           - fathom
           - calendly
       days_back:
-        description: 'Days of history to sync'
+        description: 'Days of history to sync (for Fathom/Calendly)'
         required: true
         default: '365'
         type: string
@@ -37,8 +38,18 @@ jobs:
           python -m pip install --upgrade pip
           pip install -r requirements.txt
 
+      - name: Run Intercom Sync
+        if: ${{ github.event.inputs.sync_type == 'all' || github.event.inputs.sync_type == 'intercom' }}
+        env:
+          DATABASE_URL: ${{ secrets.DATABASE_URL }}
+          INTERCOM_API_KEY: ${{ secrets.INTERCOM_API_KEY }}
+        run: |
+          echo "Starting Intercom sync..."
+          PYTHONPATH="$PWD/execution:$PYTHONPATH" python execution/sync/sync_intercom.py
+          echo "Intercom sync completed!"
+
       - name: Run Fathom Sync
-        if: ${{ github.event.inputs.sync_type == 'both' || github.event.inputs.sync_type == 'fathom' }}
+        if: ${{ github.event.inputs.sync_type == 'all' || github.event.inputs.sync_type == 'fathom' }}
         env:
           DATABASE_URL: ${{ secrets.DATABASE_URL }}
           FATHOM_API_KEY: ${{ secrets.FATHOM_API_KEY }}
@@ -48,7 +59,7 @@ jobs:
           echo "Fathom sync completed!"
 
       - name: Run Calendly Sync
-        if: ${{ github.event.inputs.sync_type == 'both' || github.event.inputs.sync_type == 'calendly' }}
+        if: ${{ github.event.inputs.sync_type == 'all' || github.event.inputs.sync_type == 'calendly' }}
         env:
           DATABASE_URL: ${{ secrets.DATABASE_URL }}
           CALENDLY_API_KEY: ${{ secrets.CALENDLY_API_KEY }}

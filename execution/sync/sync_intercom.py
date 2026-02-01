@@ -12,6 +12,7 @@ from datetime import datetime
 from typing import Optional, Dict, Any, List
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
+from sqlalchemy.orm.attributes import flag_modified
 from loguru import logger
 
 from execution.config import settings
@@ -260,11 +261,29 @@ def process_contact(
         # Detect cancel mentions
         customer.mentioned_cancel = detect_cancel_mention(conversations)
 
+        # Store conversation details in custom_attributes
+        if customer.custom_attributes is None:
+            customer.custom_attributes = {}
+
+        # Format and store conversations (most recent 20)
+        formatted_convos = client.format_conversations_for_storage(conversations, max_conversations=20)
+        customer.custom_attributes["intercom_conversations"] = formatted_convos
+        customer.custom_attributes["intercom_conversations_count"] = len(conversations)
+        customer.custom_attributes["intercom_open_count"] = len(open_convos)
+
+        # Store last conversation date
+        if formatted_convos:
+            customer.custom_attributes["intercom_last_conversation_date"] = formatted_convos[0].get("created_at")
+
     except Exception as e:
         logger.warning(f"Error fetching conversations for {email}: {e}")
 
     # Update sync timestamp
     customer.last_intercom_sync = datetime.utcnow()
+
+    # Flag custom_attributes as modified so SQLAlchemy detects JSONB changes
+    if customer.custom_attributes:
+        flag_modified(customer, 'custom_attributes')
 
     # Commit to get customer_id
     db.commit()

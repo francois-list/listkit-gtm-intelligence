@@ -1,6 +1,6 @@
 import { notFound } from 'next/navigation'
 import Link from 'next/link'
-import { getCustomerById, getCampaignsForCustomer, FathomCall, CalendlyEvent } from '@/lib/supabase'
+import { getCustomerById, getCampaignsForCustomer, FathomCall, CalendlyEvent, IntercomConversation } from '@/lib/supabase'
 import {
   ArrowLeft,
   Mail,
@@ -540,6 +540,111 @@ export default async function CustomerDetailPage({
             <p className="text-caption mt-1">Tracks outbound communication</p>
           </div>
         </InfoCard>
+
+        {/* Intercom Conversations */}
+        <div className="lg:col-span-2">
+          <InfoCard title="Intercom Conversations">
+            {(() => {
+              const customAttrs = customer.custom_attributes || {}
+              const conversations: IntercomConversation[] = customAttrs.intercom_conversations || []
+
+              if (conversations.length === 0) {
+                return (
+                  <div className="empty-state !py-6">
+                    <MessageSquare className="w-8 h-8 mb-2" />
+                    <p className="text-body">No conversation history</p>
+                    <p className="text-caption mt-1">Intercom chats and emails will appear here</p>
+                  </div>
+                )
+              }
+
+              return (
+                <div className="space-y-4">
+                  {/* Summary Stats */}
+                  <div className="grid grid-cols-2 md:grid-cols-4 gap-3 p-3 bg-[var(--surface-muted)] rounded-sm">
+                    <div>
+                      <p className="text-caption text-[var(--text-muted)]">Total Conversations</p>
+                      <p className="text-body-strong text-[var(--text)]">{customAttrs.intercom_conversations_count || conversations.length}</p>
+                    </div>
+                    <div>
+                      <p className="text-caption text-[var(--text-muted)]">Open</p>
+                      <p className="text-body-strong text-[var(--text)]">{customAttrs.intercom_open_count || 0}</p>
+                    </div>
+                    <div>
+                      <p className="text-caption text-[var(--text-muted)]">Last 30 Days</p>
+                      <p className="text-body-strong text-[var(--text)]">{customer.intercom_convos_30d || 0}</p>
+                    </div>
+                    <div>
+                      <p className="text-caption text-[var(--text-muted)]">Cancel Mentioned</p>
+                      <p className="text-body-strong text-[var(--text)]">{customer.mentioned_cancel ? 'Yes ⚠️' : 'No'}</p>
+                    </div>
+                  </div>
+
+                  {/* Conversations List */}
+                  <div className="space-y-2">
+                    {conversations.slice(0, 10).map((convo: IntercomConversation, idx: number) => (
+                      <a
+                        key={convo.conversation_id || idx}
+                        href={convo.intercom_url}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="block p-3 bg-[var(--surface-muted)] rounded-sm hover:bg-[var(--surface-hover)] transition-colors"
+                      >
+                        <div className="flex items-start justify-between gap-3">
+                          <div className="flex-1 min-w-0">
+                            <div className="flex items-center gap-2 flex-wrap">
+                              <p className="text-body text-[var(--text)] font-medium truncate">
+                                {convo.subject || 'No Subject'}
+                              </p>
+                              <span className={`text-xs px-1.5 py-0.5 rounded ${
+                                convo.state === 'open' ? 'bg-yellow-100 text-yellow-700' :
+                                convo.state === 'closed' ? 'bg-green-100 text-green-700' :
+                                convo.state === 'snoozed' ? 'bg-blue-100 text-blue-700' :
+                                'bg-gray-100 text-gray-600'
+                              }`}>
+                                {convo.state || 'unknown'}
+                              </span>
+                              <span className={`text-xs px-1.5 py-0.5 rounded ${
+                                convo.source_type === 'email' ? 'bg-purple-100 text-purple-700' :
+                                convo.source_type === 'conversation' ? 'bg-blue-100 text-blue-700' :
+                                'bg-gray-100 text-gray-600'
+                              }`}>
+                                {convo.source_type || 'chat'}
+                              </span>
+                              {!convo.read && (
+                                <span className="text-xs px-1.5 py-0.5 rounded bg-red-100 text-red-700">Unread</span>
+                              )}
+                            </div>
+                            <p className="text-caption text-[var(--text-muted)] mt-1 line-clamp-2">
+                              {convo.preview || 'No preview available'}
+                            </p>
+                            <p className="text-caption text-[var(--text-subtle)] mt-1">
+                              {convo.created_at ? new Date(convo.created_at * 1000).toLocaleDateString('en-US', {
+                                month: 'short',
+                                day: 'numeric',
+                                year: 'numeric',
+                                hour: 'numeric',
+                                minute: '2-digit'
+                              }) : '—'}
+                              {convo.author_name && ` • From: ${convo.author_name}`}
+                              {convo.parts_count > 0 && ` • ${convo.parts_count} messages`}
+                            </p>
+                          </div>
+                          <ExternalLink className="w-4 h-4 text-[var(--text-muted)] flex-shrink-0 mt-1" />
+                        </div>
+                      </a>
+                    ))}
+                    {conversations.length > 10 && (
+                      <p className="text-caption text-[var(--text-muted)] text-center py-2">
+                        +{conversations.length - 10} more conversations
+                      </p>
+                    )}
+                  </div>
+                </div>
+              )
+            })()}
+          </InfoCard>
+        </div>
       </div>
 
       {/* Campaigns */}
