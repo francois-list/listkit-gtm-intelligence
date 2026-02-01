@@ -14,6 +14,7 @@ from datetime import datetime, timedelta
 from typing import Optional, Dict, Any, List
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
+from sqlalchemy.orm.attributes import flag_modified
 from loguru import logger
 
 from execution.config import settings
@@ -266,6 +267,9 @@ def process_fathom_participant(
 
     # Update sync timestamp
     customer.last_fathom_sync = datetime.utcnow()
+
+    # Flag custom_attributes as modified so SQLAlchemy detects JSONB changes
+    flag_modified(customer, 'custom_attributes')
 
     db.commit()
 
