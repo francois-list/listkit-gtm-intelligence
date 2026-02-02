@@ -50,6 +50,31 @@ class IntercomClient(BaseClient):
     
     def get_contact(self, contact_id: str) -> Dict[str, Any]:
         return self._request("GET", f"/contacts/{contact_id}")
+
+    def search_contact_by_email(self, email: str) -> Optional[Dict[str, Any]]:
+        """
+        Search for a contact by email address.
+
+        Args:
+            email: Email address to search for
+
+        Returns:
+            Contact object if found, None otherwise
+        """
+        try:
+            payload = {
+                "query": {
+                    "field": "email",
+                    "operator": "=",
+                    "value": email.lower().strip()
+                }
+            }
+            response = self._request("POST", "/contacts/search", json_data=payload)
+            contacts = response.get("data", [])
+            return contacts[0] if contacts else None
+        except Exception as e:
+            logger.warning(f"Failed to search contact by email {email}: {e}")
+            return None
     
     def get_contact_conversations(self, contact_id: str, per_page: int = 50) -> List[Dict[str, Any]]:
         """

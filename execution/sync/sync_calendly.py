@@ -91,20 +91,38 @@ def sync_calendly(
         metrics["events_processed"] = len(events)
         logger.info(f"Found {len(events)} events")
 
+        # OPTIMIZATION: Pre-load existing customer emails
+        logger.info("Loading existing customer emails from database...")
+        existing_customers = db.query(UnifiedCustomer.email).filter(
+            UnifiedCustomer.email.isnot(None)
+        ).all()
+        existing_emails = {c.email.lower().strip() for c in existing_customers if c.email}
+        logger.info(f"Found {len(existing_emails)} existing customers to match against")
+
         # Aggregate by email
         logger.info("Aggregating events by invitee email...")
         email_data = client.aggregate_events_by_email(events)
         logger.info(f"Found {len(email_data)} unique invitees")
 
-        # Process each invitee
-        for email, data in email_data.items():
+        # Filter to only existing customers
+        matching_emails = {email: data for email, data in email_data.items()
+                         if email.lower().strip() in existing_emails}
+        logger.info(f"Filtered to {len(matching_emails)} invitees that match existing customers")
+
+        # Process each matching invitee
+        for email, data in matching_emails.items():
             try:
-                process_invitee(db, email, data, metrics)
+                process_existing_customer_calendly(db, email, data, metrics)
                 metrics["invitees_processed"] += 1
             except Exception as e:
                 logger.error(f"Error processing invitee {email}: {e}")
                 metrics["errors"] += 1
                 metrics["customers_skipped"] += 1
+                # Rollback failed transaction so we can continue
+                try:
+                    db.rollback()
+                except:
+                    pass
 
         # Update sync log
         sync_log.status = "completed"
@@ -142,16 +160,16 @@ def sync_calendly(
         db.close()
 
 
-def process_invitee(
+def process_existing_customer_calendly(
     db: Any,
     email: str,
     data: Dict[str, Any],
     metrics: Dict[str, Any]
 ) -> None:
     """
-    Process a single Calendly invitee (external guest/customer only).
+    Process Calendly data for an existing customer only.
 
-    Creates a new customer if not found, or updates existing.
+    This optimized version only updates customers that already exist in the database.
 
     Args:
         db: Database session
@@ -174,40 +192,18 @@ def process_invitee(
         metrics["customers_skipped"] += 1
         return
 
-    # Check if customer exists
+    # Get existing customer (we pre-filtered, so should always exist)
     customer = db.query(UnifiedCustomer).filter(
         UnifiedCustomer.email == email
     ).first()
 
-    is_new = customer is None
+    if customer is None:
+        logger.debug(f"Customer not found for {email}, skipping")
+        metrics["customers_skipped"] += 1
+        return
 
-    if is_new:
-        # Create new customer from Calendly data
-        customer = UnifiedCustomer(email=email)
-        db.add(customer)
-        metrics["customers_created"] += 1
-        logger.info(f"+ Creating new customer from Calendly: {email}")
-
-        # Set name if available
-        if data.get("name"):
-            customer.name = data["name"]
-        else:
-            customer.name = email.split("@")[0]
-
-        # Set company from email domain (basic extraction)
-        domain = email.split("@")[-1]
-        if domain not in ["gmail.com", "yahoo.com", "hotmail.com", "outlook.com", "icloud.com"]:
-            # Probably a company domain
-            company = domain.split(".")[0].title()
-            customer.company_name = company
-
-        # Mark acquisition source
-        customer.acquisition_source = "calendly"
-        customer.acquisition_type = "inbound"
-
-    else:
-        metrics["customers_updated"] += 1
-        logger.debug(f"~ Updating customer from Calendly: {email}")
+    metrics["customers_updated"] += 1
+    logger.debug(f"~ Updating customer from Calendly: {email}")
 
     # Update Calendly-specific fields
     customer.total_calls_booked = data.get("total_calls_booked", 0)
@@ -306,9 +302,11 @@ def process_invitee(
             try:
                 # Extract numbers from string (e.g., "$30,000" -> 30000)
                 import re
-                numbers = re.findall(r'[\d,]+', ltv_str.replace(',', ''))
+                # Remove commas first, then find digits
+                clean_str = ltv_str.replace(',', '')
+                numbers = re.findall(r'\d+', clean_str)
                 if numbers:
-                    customer.client_ltv = int(numbers[0].replace(',', ''))
+                    customer.client_ltv = int(numbers[0])
             except (ValueError, IndexError):
                 pass
 

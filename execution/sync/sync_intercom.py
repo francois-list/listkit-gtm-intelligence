@@ -72,6 +72,9 @@ def sync_intercom(incremental: bool = True) -> Dict[str, Any]:
     """
     Sync customer data from Intercom.
 
+    Optimized approach: Only fetch Intercom data for customers that already exist
+    in our database, rather than iterating through all Intercom contacts.
+
     Args:
         incremental: If True, only sync contacts updated since last sync (not yet implemented)
 
@@ -111,16 +114,24 @@ def sync_intercom(incremental: bool = True) -> Dict[str, Any]:
         # Initialize Intercom client
         client = IntercomClient()
 
-        # Fetch all contacts
-        logger.info("Fetching contacts from Intercom...")
-        contacts = client.iter_all_contacts()
+        # OPTIMIZATION: First get all existing customers from our database
+        # This way we only make Intercom API calls for customers we care about
+        logger.info("Loading existing customers from database...")
+        existing_customers = db.query(UnifiedCustomer).filter(
+            UnifiedCustomer.email.isnot(None)
+        ).all()
 
-        # Process each contact
-        for contact in contacts:
+        logger.info(f"Found {len(existing_customers)} customers to sync with Intercom")
+
+        # Process each existing customer
+        for i, customer in enumerate(existing_customers):
+            if i % 100 == 0:
+                logger.info(f"Progress: {i}/{len(existing_customers)} customers processed")
+
             try:
-                process_contact(db, client, contact, metrics)
+                process_customer_intercom(db, client, customer, metrics)
             except Exception as e:
-                logger.error(f"Error processing contact {contact.get('id')}: {e}")
+                logger.error(f"Error processing customer {customer.email}: {e}")
                 metrics["errors"] += 1
                 metrics["contacts_skipped"] += 1
                 # Rollback failed transaction so we can continue
@@ -166,44 +177,42 @@ def sync_intercom(incremental: bool = True) -> Dict[str, Any]:
         db.close()
 
 
-def process_contact(
+def process_customer_intercom(
     db: Any,
     client: IntercomClient,
-    contact: Dict[str, Any],
+    customer: UnifiedCustomer,
     metrics: Dict[str, Any]
 ) -> None:
     """
-    Process a single Intercom contact.
+    Process Intercom data for an existing customer.
+
+    This is the optimized approach - we start with customers we know about
+    and fetch their Intercom data, rather than iterating all Intercom contacts.
 
     Args:
         db: Database session
         client: IntercomClient instance
-        contact: Contact data from Intercom
+        customer: Existing customer from our database
         metrics: Metrics dictionary to update
     """
-    email = contact.get("email")
-
+    email = customer.email
     if not email:
-        logger.debug(f"Contact {contact.get('id')} has no email, skipping")
         metrics["contacts_skipped"] += 1
         return
 
     email = email.lower().strip()
 
-    # Check if customer exists - only update existing customers, don't create new ones
-    customer = db.query(UnifiedCustomer).filter(
-        UnifiedCustomer.email == email
-    ).first()
+    # Search for this customer in Intercom
+    contact = client.search_contact_by_email(email)
 
-    if customer is None:
-        # Skip contacts that don't exist in our database
-        # We only want to enrich existing customers, not import all Intercom contacts
-        logger.debug(f"Skipping {email} - not an existing customer")
+    if contact is None:
+        # Customer not found in Intercom - skip but don't count as error
+        logger.debug(f"No Intercom contact found for {email}")
         metrics["contacts_skipped"] += 1
         return
 
     metrics["contacts_updated"] += 1
-    logger.debug(f"~ Updating customer: {email}")
+    logger.debug(f"~ Updating customer from Intercom: {email}")
 
     # Extract basic profile data
     customer.name = contact.get("name") or email.split("@")[0]
