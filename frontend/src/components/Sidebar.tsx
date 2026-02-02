@@ -15,7 +15,6 @@ import {
   BarChart3,
   HeartPulse,
   ExternalLink,
-  Slack,
   GraduationCap,
   Zap,
   Moon,
@@ -65,8 +64,7 @@ const singleNavItems: NavItem[] = [
 
 const secondaryLinks: NavItem[] = [
   { name: 'ListKit Platform', href: 'https://app.listkit.io', icon: ExternalLink },
-  { name: 'Education', href: '#', icon: GraduationCap },
-  { name: 'Join Slack Community', href: '#', icon: Slack },
+  { name: 'Education', href: '/education', icon: GraduationCap },
 ]
 
 interface SidebarProps {
@@ -247,20 +245,40 @@ export default function Sidebar({ collapsed, onToggle }: SidebarProps) {
         <div className="px-2 py-2 border-t border-[var(--border)]">
           {secondaryLinks.map((item) => {
             const Icon = item.icon
+            const isExternal = item.href.startsWith('http')
+            const isPlaceholder = item.href === '#'
+
+            if (isExternal || isPlaceholder) {
+              return (
+                <a
+                  key={item.name}
+                  href={item.href}
+                  target={isExternal ? '_blank' : undefined}
+                  rel={isExternal ? 'noopener noreferrer' : undefined}
+                  className="flex items-center gap-3 px-3 py-2 rounded-sm text-body text-[var(--text-muted)] hover:bg-[var(--surface-muted)] hover:text-[var(--text)] transition-colors"
+                >
+                  <Icon className="w-4 h-4" />
+                  <span className="flex-1">{item.name}</span>
+                  {isExternal && (
+                    <ExternalLink className="w-3 h-3" />
+                  )}
+                </a>
+              )
+            }
+
             return (
-              <a
+              <Link
                 key={item.name}
                 href={item.href}
-                target={item.href.startsWith('http') ? '_blank' : undefined}
-                rel={item.href.startsWith('http') ? 'noopener noreferrer' : undefined}
-                className="flex items-center gap-3 px-3 py-2 rounded-sm text-body text-[var(--text-muted)] hover:bg-[var(--surface-muted)] hover:text-[var(--text)] transition-colors"
+                className={`flex items-center gap-3 px-3 py-2 rounded-sm text-body transition-colors ${
+                  isActive(item.href)
+                    ? 'bg-[var(--primary-light)] text-[var(--primary)] font-medium'
+                    : 'text-[var(--text-muted)] hover:bg-[var(--surface-muted)] hover:text-[var(--text)]'
+                }`}
               >
-                <Icon className="w-4 h-4" />
+                <Icon className={`w-4 h-4 ${isActive(item.href) ? 'text-[var(--primary)]' : ''}`} />
                 <span className="flex-1">{item.name}</span>
-                {item.href.startsWith('http') && (
-                  <ExternalLink className="w-3 h-3" />
-                )}
-              </a>
+              </Link>
             )
           })}
           {/* Theme Toggle */}

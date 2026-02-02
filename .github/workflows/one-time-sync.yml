@@ -64,8 +64,8 @@ jobs:
           DATABASE_URL: ${{ secrets.DATABASE_URL }}
           CALENDLY_API_KEY: ${{ secrets.CALENDLY_API_KEY }}
         run: |
-          echo "Starting Calendly sync for ${{ github.event.inputs.days_back }} days..."
-          PYTHONPATH="$PWD/execution:$PYTHONPATH" python execution/sync/sync_calendly.py --days=${{ github.event.inputs.days_back }}
+          echo "Starting Calendly sync for ${{ github.event.inputs.days_back }} days (existing customers only)..."
+          PYTHONPATH="$PWD/execution:$PYTHONPATH" python execution/sync/sync_calendly.py --full --days=${{ github.event.inputs.days_back }}
           echo "Calendly sync completed!"
 
       - name: Sync Summary

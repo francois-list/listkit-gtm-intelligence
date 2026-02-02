@@ -11,6 +11,8 @@ import {
   ChevronLeft,
   ChevronRight,
   ArrowUpDown,
+  ArrowUp,
+  ArrowDown,
   Table,
   BarChart3,
   Download,
@@ -543,6 +545,16 @@ function CustomersContent() {
 
   const totalPages = Math.ceil(total / perPage)
 
+  // Sort indicator helper
+  const SortIcon = ({ field }: { field: string }) => {
+    if (sortBy !== field) {
+      return <ArrowUpDown className="w-3 h-3 text-[var(--text-muted)]" />
+    }
+    return sortOrder === 'desc'
+      ? <ArrowDown className="w-3 h-3 text-[var(--primary)]" />
+      : <ArrowUp className="w-3 h-3 text-[var(--primary)]" />
+  }
+
   // Count active filters for toolbar
   const activeFilterCount = [
     filters.am.length > 0,
@@ -675,7 +687,7 @@ function CustomersContent() {
                           <div className="flex items-center gap-1">
                             <Building2 className="w-3.5 h-3.5" />
                             Customer
-                            <ArrowUpDown className="w-3 h-3" />
+                            <SortIcon field="name" />
                           </div>
                         </th>
                         <th className="text-left">AM</th>
@@ -687,7 +699,7 @@ function CustomersContent() {
                         >
                           <div className="flex items-center justify-end gap-1">
                             MRR
-                            <ArrowUpDown className="w-3 h-3" />
+                            <SortIcon field="mrr" />
                           </div>
                         </th>
                         <th className="text-center">Health</th>
@@ -698,7 +710,7 @@ function CustomersContent() {
                         >
                           <div className="flex items-center justify-end gap-1">
                             Last Seen
-                            <ArrowUpDown className="w-3 h-3" />
+                            <SortIcon field="days_since_seen" />
                           </div>
                         </th>
                       </tr>
@@ -760,7 +772,9 @@ function CustomersContent() {
                               <span className="badge-info">{customer.plan_name || '—'}</span>
                             </td>
                             <td className="py-2 px-3 text-right text-body-strong text-[var(--text)]">
-                              {customer.mrr ? `$${customer.mrr.toLocaleString()}` : '—'}
+                              {customer.mrr !== null && customer.mrr !== undefined
+                                ? `$${customer.mrr.toLocaleString()}`
+                                : '—'}
                             </td>
                             <td className="py-2 px-3 text-center">
                               <HealthScore score={customer.health_score} />

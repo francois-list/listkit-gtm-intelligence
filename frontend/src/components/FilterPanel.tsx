@@ -16,7 +16,17 @@ import {
   Clock,
   Bookmark,
   Layers,
+  Check,
 } from 'lucide-react'
+
+const STORAGE_KEY = 'listkit-saved-filters'
+
+interface SavedFilter {
+  id: string
+  name: string
+  filters: FilterState
+  createdAt: string
+}
 
 export interface FilterState {
   search: string
@@ -268,9 +278,45 @@ export default function FilterPanel({ filters, onChange, filterOptions, collapse
     lastSeen: false,
     trafficSource: false,
   })
+  const [showSaveDialog, setShowSaveDialog] = useState(false)
+  const [filterName, setFilterName] = useState('')
+  const [saveSuccess, setSaveSuccess] = useState(false)
 
   const toggleSection = (key: string) => {
     setExpandedSections(prev => ({ ...prev, [key]: !prev[key] }))
+  }
+
+  const handleSaveFilter = () => {
+    if (!filterName.trim()) return
+
+    const savedFilters: SavedFilter[] = (() => {
+      try {
+        const saved = localStorage.getItem(STORAGE_KEY)
+        return saved ? JSON.parse(saved) : []
+      } catch {
+        return []
+      }
+    })()
+
+    const newFilter: SavedFilter = {
+      id: Date.now().toString(),
+      name: filterName.trim(),
+      filters: filters,
+      createdAt: new Date().toISOString(),
+    }
+
+    savedFilters.push(newFilter)
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(savedFilters))
+
+    // Dispatch custom event to notify SavedFilters component
+    window.dispatchEvent(new CustomEvent('savedFiltersUpdated'))
+
+    setSaveSuccess(true)
+    setTimeout(() => {
+      setShowSaveDialog(false)
+      setFilterName('')
+      setSaveSuccess(false)
+    }, 1000)
   }
 
   const activeFilterCount = [
@@ -313,12 +359,64 @@ export default function FilterPanel({ filters, onChange, filterOptions, collapse
               Reset
             </button>
           )}
-          <button className="btn-primary btn-sm">
+          <button
+            onClick={() => setShowSaveDialog(true)}
+            className="btn-primary btn-sm"
+            disabled={activeFilterCount === 0}
+          >
             <Bookmark className="w-3 h-3" />
             Save filter
           </button>
         </div>
       </div>
+
+      {/* Save Filter Dialog */}
+      {showSaveDialog && (
+        <div className="px-3 py-3 border-b border-[var(--border)] bg-[var(--surface-muted)]">
+          {saveSuccess ? (
+            <div className="flex items-center gap-2 text-[var(--success-text)]">
+              <Check className="w-4 h-4" />
+              <span className="text-body-strong">Filter saved!</span>
+            </div>
+          ) : (
+            <div className="space-y-2">
+              <input
+                type="text"
+                value={filterName}
+                onChange={(e) => setFilterName(e.target.value)}
+                placeholder="Filter name..."
+                className="input !py-1.5 text-caption w-full"
+                autoFocus
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter') handleSaveFilter()
+                  if (e.key === 'Escape') {
+                    setShowSaveDialog(false)
+                    setFilterName('')
+                  }
+                }}
+              />
+              <div className="flex items-center gap-2">
+                <button
+                  onClick={handleSaveFilter}
+                  disabled={!filterName.trim()}
+                  className="btn-primary btn-sm flex-1"
+                >
+                  Save
+                </button>
+                <button
+                  onClick={() => {
+                    setShowSaveDialog(false)
+                    setFilterName('')
+                  }}
+                  className="btn-secondary btn-sm"
+                >
+                  Cancel
+                </button>
+              </div>
+            </div>
+          )}
+        </div>
+      )}
 
       {/* Filter List */}
       <div className="flex-1 overflow-y-auto">

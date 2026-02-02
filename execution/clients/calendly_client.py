@@ -31,7 +31,7 @@ class CalendlyClient(BaseClient):
         super().__init__(
             api_key=api_key,
             base_url="https://api.calendly.com",
-            rate_limit=1  # Calendly: Very conservative rate limiting
+            rate_limit=3  # Calendly: ~3 req/sec is safe for most plans
         )
         self._user_uri: Optional[str] = None
         self._organization_uri: Optional[str] = None
@@ -304,6 +304,163 @@ class CalendlyClient(BaseClient):
                         event["organizer"] = organizer
 
                 yield event
+
+    def aggregate_events_by_email_filtered(
+        self,
+        events: Generator[Dict[str, Any], None, None],
+        target_emails: set
+    ) -> Dict[str, Dict[str, Any]]:
+        """
+        Stream events and aggregate only invitees matching target emails.
+
+        This is an optimized version that filters during aggregation,
+        skipping all non-matching invitees to reduce memory and processing.
+
+        Args:
+            events: Generator of event dictionaries with invitees
+            target_emails: Set of lowercase email addresses to match
+
+        Returns:
+            Dictionary keyed by email with aggregated metrics (only matching emails)
+        """
+        email_data: Dict[str, Dict[str, Any]] = {}
+        now = datetime.utcnow()
+        events_processed = 0
+        invitees_matched = 0
+        invitees_skipped = 0
+
+        # Internal domains to exclude (hosts/staff)
+        internal_domains = ["listkit.io", "listkit.com", "knowledgex.us"]
+
+        # Normalize target emails
+        target_emails_lower = {e.lower().strip() for e in target_emails if e}
+
+        for event in events:
+            events_processed += 1
+            if events_processed % 100 == 0:
+                logger.info(f"Processed {events_processed} events, matched {invitees_matched} invitees...")
+
+            event_status = event.get("status", "active")
+            start_time_str = event.get("start_time", "")
+
+            if start_time_str:
+                start_time = datetime.fromisoformat(start_time_str.replace("Z", "+00:00"))
+                start_time = start_time.replace(tzinfo=None)
+                is_past = start_time < now
+            else:
+                start_time = None
+                is_past = True
+
+            organizer = event.get("organizer", {})
+            organizer_name = organizer.get("name", "Unknown")
+            organizer_email = (organizer.get("email") or "").lower().strip()
+            event_name = event.get("name", "Unknown Event")
+
+            for invitee in event.get("invitees", []):
+                email = (invitee.get("email") or "").lower().strip()
+                if not email:
+                    continue
+
+                # Skip internal/host emails
+                domain = email.split("@")[-1] if "@" in email else ""
+                if domain in internal_domains:
+                    continue
+
+                # Skip if invitee is the organizer/host
+                if email == organizer_email:
+                    continue
+
+                # OPTIMIZATION: Skip if not in target emails
+                if email not in target_emails_lower:
+                    invitees_skipped += 1
+                    continue
+
+                invitees_matched += 1
+
+                if email not in email_data:
+                    email_data[email] = {
+                        "email": email,
+                        "name": invitee.get("name"),
+                        "total_calls_booked": 0,
+                        "calls_completed": 0,
+                        "calls_no_show": 0,
+                        "calls_canceled": 0,
+                        "calls_rescheduled": 0,
+                        "last_call_date": None,
+                        "next_call_date": None,
+                        "last_organizer": None,
+                        "last_organizer_email": None,
+                        "events": [],
+                        "questionnaire_responses": []
+                    }
+
+                data = email_data[email]
+                data["total_calls_booked"] += 1
+
+                # Get questionnaire responses
+                questions_answers = invitee.get("questions_and_answers", [])
+
+                # Track event details
+                event_record = {
+                    "event_uri": event.get("uri"),
+                    "event_name": event_name,
+                    "start_time": start_time,
+                    "status": event_status,
+                    "organizer": organizer_name,
+                    "invitee_status": invitee.get("status"),
+                    "no_show": invitee.get("no_show", False),
+                    "rescheduled": invitee.get("rescheduled", False),
+                    "canceled": invitee.get("canceled", False),
+                    "questions_and_answers": questions_answers
+                }
+                data["events"].append(event_record)
+
+                # Aggregate questionnaire responses
+                if questions_answers:
+                    for qa in questions_answers:
+                        question = qa.get("question", "")
+                        answer = qa.get("answer", "")
+                        if question and answer:
+                            data["questionnaire_responses"].append({
+                                "question": question,
+                                "answer": answer,
+                                "event_name": event_name,
+                                "event_date": start_time.isoformat() if start_time else None
+                            })
+
+                # Count by status
+                if event_status == "canceled" or invitee.get("canceled"):
+                    data["calls_canceled"] += 1
+                elif invitee.get("rescheduled"):
+                    data["calls_rescheduled"] += 1
+                elif invitee.get("no_show"):
+                    data["calls_no_show"] += 1
+                elif is_past:
+                    data["calls_completed"] += 1
+                    if start_time:
+                        if data["last_call_date"] is None or start_time > data["last_call_date"]:
+                            data["last_call_date"] = start_time
+                            data["last_organizer"] = organizer_name
+                            data["last_organizer_email"] = organizer_email
+                else:
+                    if start_time:
+                        if data["next_call_date"] is None or start_time < data["next_call_date"]:
+                            data["next_call_date"] = start_time
+
+        logger.info(f"Aggregation complete: {events_processed} events, {invitees_matched} matched, {invitees_skipped} skipped")
+
+        # Calculate show rates
+        for email, data in email_data.items():
+            attended = data["calls_completed"]
+            no_shows = data["calls_no_show"]
+            total_past = attended + no_shows
+
+            if total_past > 0:
+                data["show_rate"] = (attended / total_past) * 100
+            else:
+                data["show_rate"] = None
+
+        return email_data
 
     def aggregate_events_by_email(
         self,

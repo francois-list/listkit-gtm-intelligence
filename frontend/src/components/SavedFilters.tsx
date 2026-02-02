@@ -39,6 +39,13 @@ export default function SavedFilters({ currentFilters, onApplyFilter }: SavedFil
 
   useEffect(() => {
     setSavedFilters(getSavedFilters())
+
+    // Listen for updates from FilterPanel when a new filter is saved
+    const handleFiltersUpdated = () => {
+      setSavedFilters(getSavedFilters())
+    }
+    window.addEventListener('savedFiltersUpdated', handleFiltersUpdated)
+    return () => window.removeEventListener('savedFiltersUpdated', handleFiltersUpdated)
   }, [])
 
   useEffect(() => {

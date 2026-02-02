@@ -3,6 +3,7 @@ import Link from 'next/link'
 import { getCustomerById, getCampaignsForCustomer, FathomCall, CalendlyEvent, IntercomConversation } from '@/lib/supabase'
 import ExpandableCallList from '@/components/ExpandableCallList'
 import ExpandableConversationList from '@/components/ExpandableConversationList'
+import CustomerAIAnalyzeButton from '@/components/CustomerAIAnalyzeButton'
 
 // Force dynamic rendering - don't cache this page
 export const dynamic = 'force-dynamic'
@@ -247,6 +248,7 @@ export default async function CustomerDetailPage({
               <div className="flex items-center gap-2 flex-shrink-0">
                 <HealthStatusBadge status={customer.health_status} />
                 <StatusBadge status={customer.subscription_status} large />
+                <CustomerAIAnalyzeButton customer={customer} />
               </div>
             </div>
 

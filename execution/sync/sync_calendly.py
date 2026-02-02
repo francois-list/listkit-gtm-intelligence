@@ -10,9 +10,9 @@ Syncs call booking and attendance data from Calendly including:
 Creates new customers if invitee email not found in database.
 """
 
-from datetime import datetime
+from datetime import datetime, timedelta
 from typing import Optional, Dict, Any, List
-from sqlalchemy import create_engine
+from sqlalchemy import create_engine, desc
 from sqlalchemy.orm import sessionmaker
 from sqlalchemy.orm.attributes import flag_modified
 from loguru import logger
@@ -25,7 +25,7 @@ from execution.health_calculator import calculate_health_score
 
 def sync_calendly(
     incremental: bool = True,
-    days_back: int = 90,
+    days_back: int = 30,
     days_forward: int = 30
 ) -> Dict[str, Any]:
     """
@@ -81,17 +81,8 @@ def sync_calendly(
         user = client.get_current_user()
         logger.info(f"Authenticated as: {user.get('name')} ({user.get('email')})")
 
-        # Fetch all events with invitees
-        logger.info(f"Fetching events from last {days_back} days and next {days_forward} days...")
-        events = list(client.get_all_events_with_invitees(
-            days_back=days_back,
-            days_forward=days_forward,
-            include_canceled=True
-        ))
-        metrics["events_processed"] = len(events)
-        logger.info(f"Found {len(events)} events")
-
-        # OPTIMIZATION: Pre-load existing customer emails
+        # OPTIMIZATION: Pre-load existing customer emails FIRST
+        # This allows us to filter during aggregation, not after
         logger.info("Loading existing customer emails from database...")
         existing_customers = db.query(UnifiedCustomer.email).filter(
             UnifiedCustomer.email.isnot(None)
@@ -99,15 +90,41 @@ def sync_calendly(
         existing_emails = {c.email.lower().strip() for c in existing_customers if c.email}
         logger.info(f"Found {len(existing_emails)} existing customers to match against")
 
-        # Aggregate by email
-        logger.info("Aggregating events by invitee email...")
-        email_data = client.aggregate_events_by_email(events)
-        logger.info(f"Found {len(email_data)} unique invitees")
+        # TRUE INCREMENTAL: Check last successful sync to minimize API calls
+        actual_days_back = days_back
+        if incremental:
+            last_sync = db.query(SyncLog).filter(
+                SyncLog.source == "calendly",
+                SyncLog.status == "completed"
+            ).order_by(desc(SyncLog.completed_at)).first()
 
-        # Filter to only existing customers
-        matching_emails = {email: data for email, data in email_data.items()
-                         if email.lower().strip() in existing_emails}
-        logger.info(f"Filtered to {len(matching_emails)} invitees that match existing customers")
+            if last_sync and last_sync.completed_at:
+                # Only fetch events since last sync (with 1 day buffer for safety)
+                days_since_last_sync = (datetime.utcnow() - last_sync.completed_at).days + 1
+                actual_days_back = min(days_since_last_sync, days_back)
+                logger.info(f"Last successful sync: {last_sync.completed_at}")
+                logger.info(f"Using incremental window: {actual_days_back} days (instead of {days_back})")
+            else:
+                logger.info("No previous successful sync found - doing full sync")
+
+        # Fetch events and aggregate with filtering in one pass
+        # This skips non-matching invitees entirely during aggregation
+        logger.info(f"Fetching events from last {actual_days_back} days and next {days_forward} days...")
+        logger.info("Using filtered aggregation - only processing existing customers...")
+
+        events_generator = client.get_all_events_with_invitees(
+            days_back=actual_days_back,
+            days_forward=days_forward,
+            include_canceled=True
+        )
+
+        # Aggregate with filtering - only matching emails are processed
+        matching_emails = client.aggregate_events_by_email_filtered(
+            events_generator,
+            existing_emails
+        )
+
+        logger.info(f"Found {len(matching_emails)} customers with Calendly activity")
 
         # Process each matching invitee
         for email, data in matching_emails.items():
@@ -412,8 +429,19 @@ if __name__ == "__main__":
 
     # Parse arguments
     incremental = "--full" not in sys.argv
-    days_back = 90
+    days_back = 30  # Default to 30 days for regular sync
 
+    # --backfill flag for full historical sync (365 days)
+    if "--backfill" in sys.argv:
+        days_back = 365
+        incremental = False
+        print("Running full 365-day backfill for existing customers...")
+
+    # --full flag disables incremental (uses days_back value)
+    if "--full" in sys.argv:
+        incremental = False
+
+    # Custom days override
     for arg in sys.argv:
         if arg.startswith("--days="):
             days_back = int(arg.split("=")[1])

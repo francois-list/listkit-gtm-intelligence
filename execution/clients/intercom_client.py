@@ -53,13 +53,13 @@ class IntercomClient(BaseClient):
 
     def search_contact_by_email(self, email: str) -> Optional[Dict[str, Any]]:
         """
-        Search for a contact by email address.
+        Search for a contact by email address and return full contact data.
 
         Args:
             email: Email address to search for
 
         Returns:
-            Contact object if found, None otherwise
+            Full contact object (with custom_attributes) if found, None otherwise
         """
         try:
             payload = {
@@ -71,7 +71,15 @@ class IntercomClient(BaseClient):
             }
             response = self._request("POST", "/contacts/search", json_data=payload)
             contacts = response.get("data", [])
-            return contacts[0] if contacts else None
+            if not contacts:
+                return None
+
+            # Search API may not return full custom_attributes
+            # Fetch the full contact to get all data including Stripe attributes
+            contact_id = contacts[0].get("id")
+            if contact_id:
+                return self.get_contact(contact_id)
+            return contacts[0]
         except Exception as e:
             logger.warning(f"Failed to search contact by email {email}: {e}")
             return None
@@ -223,6 +231,8 @@ class IntercomClient(BaseClient):
         custom = contact.get("custom_attributes", {})
         mrr = 0.0
         subscription_count = 0
+
+        # Try to get MRR from Stripe Subscriptions array first
         subscriptions = custom.get("Stripe Subscriptions", []) or []
         if isinstance(subscriptions, list):
             for sub in subscriptions:
@@ -234,17 +244,37 @@ class IntercomClient(BaseClient):
                         mrr += price / 12
                     elif interval == "month":
                         mrr += price
+
+        # If no MRR from subscriptions array, try direct stripe_plan_price field
+        # Only use if customer has active subscription
+        subscription_status = custom.get("stripe_subscription_status")
+        if mrr == 0 and subscription_status == "active":
+            plan_price = custom.get("stripe_plan_price")
+            if plan_price:
+                try:
+                    # Price could be in cents or dollars, handle both
+                    price_val = float(plan_price)
+                    # If price > 1000, assume it's in cents
+                    if price_val > 1000:
+                        mrr = price_val / 100
+                    else:
+                        mrr = price_val
+                    subscription_count = 1
+                except (ValueError, TypeError):
+                    pass
+
         ltv = 0.0
         payments = custom.get("Stripe Payments", []) or []
         if isinstance(payments, list):
             for payment in payments:
                 if isinstance(payment, dict) and payment.get("status") == "succeeded":
                     ltv += (payment.get("amount", 0) or 0) / 100
+
         return {
             "stripe_customer_id": custom.get("stripe_id"),
             "plan_name": custom.get("stripe_plan"),
             "plan_price": custom.get("stripe_plan_price"),
-            "subscription_status": custom.get("stripe_subscription_status"),
+            "subscription_status": subscription_status,
             "is_delinquent": custom.get("stripe_delinquent", False),
             "last_payment_amount": custom.get("stripe_last_charge_amount"),
             "last_payment_date": None,
